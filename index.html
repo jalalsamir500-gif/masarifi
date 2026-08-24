@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم المالية التفاعلية | ديكور سمير & Sami Rsto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Cairo', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex items-center space-x-3 space-x-reverse">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 flex items-center justify-center text-white shadow">
+                    <i class="fa-solid fa-chart-pie text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-slate-900 leading-tight">اللوحة المالية التفاعلية</h1>
+                    <p class="text-xs text-slate-500 font-medium">ديكور سمير (مراكش) & متجر Sami Rsto</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="backupData()" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-50 shadow-sm">
+                    <i class="fa-solid fa-download text-sky-600"></i> نسخ احتياطي
+                </button>
+                <button onclick="document.getElementById('restoreFile').click()" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-50 shadow-sm">
+                    <i class="fa-solid fa-upload text-amber-600"></i> استرجاع
+                </button>
+                <input type="file" id="restoreFile" accept="application/json" onchange="restoreData(event)" class="hidden">
+                <button onclick="resetAllData()" class="px-3 py-1.5 bg-white border border-rose-200 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 shadow-sm">
+                    <i class="fa-solid fa-rotate-left"></i> تصفير الكل
+                </button>
+                <button onclick="exportCSV()" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-50 shadow-sm">
+                    <i class="fa-solid fa-file-excel text-emerald-600"></i> تصدير CSV
+                </button>
+                <button onclick="openModal()" class="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow">
+                    <i class="fa-solid fa-plus"></i> إضافة معاملة جديدة
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        <!-- Goal Progress Banner -->
+        <section class="bg-gradient-to-l from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 text-white shadow-xl">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <span class="text-xs px-2.5 py-1 rounded-full bg-indigo-500/30 text-indigo-200 font-semibold">
+                        <i class="fa-solid fa-bullseye text-amber-400"></i> هدف 100,000 درهم في 24 شهراً
+                    </span>
+                    <h2 class="text-xl font-extrabold mt-2">مسار تحقيق الـ 100 ألف درهم</h2>
+                    <p class="text-xs text-slate-300">هذا المسار خاص بالتوفير فقط. أضف هنا الأموال التي لن تلمسها.</p>
+                </div>
+                <div class="grid grid-cols-3 gap-2 bg-white/5 p-3 rounded-xl border border-white/10 text-center">
+                    <div><span class="text-[10px] text-slate-400 block">المحقق</span><span id="goalAchieved" class="text-sm font-bold text-emerald-400">0 د.م</span></div>
+                    <div class="border-r border-white/10"><span class="text-[10px] text-slate-400 block">المتبقي</span><span id="goalRemaining" class="text-sm font-bold text-amber-300">100,000 د.م</span></div>
+                    <div class="border-r border-white/10"><span class="text-[10px] text-slate-400 block">الإنجاز</span><span id="goalPercentage" class="text-sm font-bold text-sky-400">0%</span></div>
+                </div>
+            </div>
+            <div class="w-full h-3 bg-slate-800 rounded-full mt-4 overflow-hidden p-0.5 border border-slate-700">
+                <div id="goalProgressBar" class="h-full bg-gradient-to-r from-emerald-500 to-sky-400 rounded-full transition-all duration-700" style="width: 0%"></div>
+            </div>
+            <div class="h-36 mt-4"><canvas id="goalChart"></canvas></div>
+            <form onsubmit="saveSaving(event)" class="mt-4 flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
+                <label class="text-xs font-bold text-slate-200 flex-1">مبلغ جديد للتوفير (د.م)
+                    <input type="number" id="savingAmount" min="0.01" step="any" required placeholder="مثال: 500" class="block w-full mt-1 p-2 rounded-lg text-slate-900 font-bold">
+                </label>
+                <label class="text-xs font-bold text-slate-200 flex-1">تاريخ التوفير
+                    <input type="date" id="savingDate" required class="block w-full mt-1 p-2 rounded-lg text-slate-900">
+                </label>
+                <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold">إضافة إلى التوفير</button>
+            </form>
+        </section>
+
+        <!-- KPI Cards -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <span class="text-xs font-bold text-slate-500">إجمالي المداخيل</span>
+                <div class="mt-2 text-2xl font-extrabold text-slate-900"><span id="kpiTotalIncome">0</span> <span class="text-xs text-slate-500">د.م</span></div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <span class="text-xs font-bold text-slate-500">إجمالي المصاريف</span>
+                <div class="mt-2 text-2xl font-extrabold text-rose-600"><span id="kpiTotalExpense">0</span> <span class="text-xs text-slate-500">د.م</span></div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <span class="text-xs font-bold text-slate-500">صافي الربح الفعلي</span>
+                <div class="mt-2 text-2xl font-extrabold text-emerald-600"><span id="kpiNetProfit">0</span> <span class="text-xs text-slate-500">د.م</span></div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <span class="text-xs font-bold text-slate-500">أعلى مصدر دخل</span>
+                <div class="mt-2 text-sm font-bold text-slate-900 truncate" id="kpiTopSource">-</div>
+            </div>
+        </section>
+
+        <!-- Rent Settings -->
+        <section class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800"><i class="fa-solid fa-house text-amber-500"></i> مصروف الكراء</h3>
+                    <p class="text-xs text-slate-500 mt-1">اختر مدة الكراء وأدخل تاريخ البداية لمعرفة تاريخ الانتهاء تلقائيًا.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+                    <label class="text-xs font-bold">الكراء الشهري (د.م)
+                        <input type="number" id="monthlyRent" min="0" step="any" value="0" oninput="saveRent()" class="block w-full sm:w-44 mt-1 p-2 border border-slate-300 rounded-lg font-bold">
+                    </label>
+                    <label class="text-xs font-bold">تاريخ البداية
+                        <input type="date" id="rentStartDate" onchange="saveRent()" class="block w-full sm:w-40 mt-1 p-2 border border-slate-300 rounded-lg">
+                    </label>
+                    <fieldset class="text-xs font-bold">
+                        <legend>مدة الكراء</legend>
+                        <div class="flex gap-2 mt-1">
+                            <label class="p-2 border rounded-lg cursor-pointer"><input type="radio" name="rentDuration" value="6" onchange="saveRent()"> 6 أشهر</label>
+                            <label class="p-2 border rounded-lg cursor-pointer"><input type="radio" name="rentDuration" value="12" onchange="saveRent()"> سنة</label>
+                        </div>
+                    </fieldset>
+                    <div class="grid grid-cols-2 gap-3 text-center">
+                        <div class="bg-amber-50 border border-amber-100 rounded-lg px-4 py-2"><span class="block text-[10px] text-slate-500">تكلفة 6 أشهر</span><strong id="rentSixMonths" class="text-sm text-amber-700">0 د.م</strong></div>
+                        <div class="bg-rose-50 border border-rose-100 rounded-lg px-4 py-2"><span class="block text-[10px] text-slate-500">تكلفة السنة</span><strong id="rentYear" class="text-sm text-rose-700">0 د.م</strong></div>
+                    </div>
+                </div>
+                <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-3"><span class="text-slate-500">تاريخ انتهاء الكراء</span><strong id="rentEndDate" class="block text-slate-900 mt-1">-</strong></div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-3"><span class="text-slate-500">المتبقي</span><strong id="rentDaysRemaining" class="block text-slate-900 mt-1">-</strong></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Period Summary -->
+        <section class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800"><i class="fa-solid fa-calendar-days text-sky-600"></i> متابعة حسب الفترة</h3>
+                    <p class="text-xs text-slate-500 mt-1">راقب الدخل والمصاريف والصافي لليوم أو الشهر أو السنة.</p>
+                </div>
+                <div class="flex items-end gap-2">
+                    <label class="text-xs font-bold">الفترة
+                        <select id="summaryPeriod" onchange="renderPeriodSummary()" class="block w-32 mt-1 p-2 border border-slate-300 rounded-lg bg-white">
+                            <option value="day">اليوم</option>
+                            <option value="month" selected>هذا الشهر</option>
+                            <option value="year">هذه السنة</option>
+                        </select>
+                    </label>
+                    <label class="text-xs font-bold">التاريخ المرجعي
+                        <input type="date" id="summaryDate" onchange="renderPeriodSummary()" class="block w-40 mt-1 p-2 border border-slate-300 rounded-lg">
+                    </label>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-3"><span class="text-xs text-slate-500">الدخل في الفترة</span><strong id="periodIncome" class="block mt-1 text-lg text-emerald-700">0 د.م</strong></div>
+                <div class="bg-rose-50 border border-rose-100 rounded-lg p-3"><span class="text-xs text-slate-500">المصاريف في الفترة</span><strong id="periodExpense" class="block mt-1 text-lg text-rose-700">0 د.م</strong></div>
+                <div class="bg-sky-50 border border-sky-100 rounded-lg p-3"><span class="text-xs text-slate-500">الصافي في الفترة</span><strong id="periodNet" class="block mt-1 text-lg text-sky-700">0 د.م</strong></div>
+            </div>
+            <div class="mt-5 h-64"><canvas id="trendChart"></canvas></div>
+            <div class="mt-3 flex justify-end">
+                <label class="text-xs font-bold">عرض المخطط
+                    <select id="trendType" onchange="renderPeriodSummary()" class="block w-36 mt-1 p-2 border border-slate-300 rounded-lg bg-white">
+                        <option value="income">الدخل</option>
+                        <option value="expense">المصاريف</option>
+                    </select>
+                </label>
+            </div>
+        </section>
+
+        <!-- Charts -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <h3 class="text-xs font-bold text-slate-700 mb-3"><i class="fa-solid fa-chart-pie text-sky-600"></i> توزيع مصادر الدخل</h3>
+                <div class="h-52"><canvas id="incomeChart"></canvas></div>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <h3 class="text-xs font-bold text-slate-700 mb-3"><i class="fa-solid fa-chart-pie text-rose-500"></i> توزيع المصاريف</h3>
+                <div class="h-52"><canvas id="expenseChart"></canvas></div>
+            </div>
+        </section>
+
+        <!-- Table -->
+        <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between gap-3">
+                <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-list text-sky-600"></i> سجل المعاملات</h3>
+                <div class="flex gap-2">
+                    <input type="text" id="searchInput" oninput="renderTable()" placeholder="بحث..." class="px-3 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs">
+                    <select id="typeFilter" onchange="renderTable()" class="px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold">
+                        <option value="all">الكل</option>
+                        <option value="income">مداخيل 🟢</option>
+                        <option value="expense">مصاريف 🔴</option>
+                    </select>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-right text-xs">
+                    <thead class="bg-slate-50 text-slate-500 font-bold border-b">
+                        <tr>
+                            <th class="p-3">النوع</th>
+                            <th class="p-3">التاريخ</th>
+                            <th class="p-3">التصنيف / المصدر</th>
+                            <th class="p-3">البيان</th>
+                            <th class="p-3">المبلغ</th>
+                            <th class="p-3 text-center">حذف</th>
+                        </tr>
+                    </thead>
+                    <tbody id="txTableBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal -->
+    <div id="txModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
+            <div class="flex justify-between items-center pb-2 border-b">
+                <h3 class="text-sm font-bold">تسجيل معاملة جديدة</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            <form onsubmit="saveTx(event)" class="space-y-3 text-xs">
+                <div class="flex gap-3">
+                    <label class="flex-1 p-2 border rounded-lg text-center cursor-pointer font-bold"><input type="radio" name="txType" value="income" checked onchange="updateCats()"> مدخول 🟢</label>
+                    <label class="flex-1 p-2 border rounded-lg text-center cursor-pointer font-bold"><input type="radio" name="txType" value="expense" onchange="updateCats()"> مصروف 🔴</label>
+                </div>
+                <div><label class="block font-bold mb-1">التاريخ:</label><input type="date" id="txDate" required class="w-full p-2 border rounded-lg"></div>
+                <div><label class="block font-bold mb-1">المبلغ (درهم):</label><input type="number" step="any" id="txAmount" required placeholder="مثال: 1500" class="w-full p-2 border rounded-lg font-bold"></div>
+                <div><label class="block font-bold mb-1">التصنيف:</label><select id="txCategory" class="w-full p-2 border rounded-lg"></select></div>
+                <div id="incomeSourceField" class="hidden"><label class="block font-bold mb-1">مصدر الدخل المكتوب:</label><input type="text" id="incomeSource" placeholder="مثال: توصية من زبون" class="w-full p-2 border rounded-lg"></div>
+                <div><label class="block font-bold mb-1">البيان (اختياري):</label><input type="text" id="txDesc" placeholder="تفاصيل المشروع أو المصروف" class="w-full p-2 border rounded-lg"></div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button type="button" onclick="closeModal()" class="px-3 py-1.5 bg-slate-100 rounded-lg">إلغاء</button>
+                    <button type="submit" class="px-4 py-1.5 bg-sky-600 text-white rounded-lg font-bold">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const incCats = ['موقعي الإلكتروني', 'متجري إتسي', 'الصباغة والديكور'];
+        const expCats = ['مواد غذائية', 'أدوية للصحة', 'مستلزمات الطفل', 'مستلزمات المرأة', 'مستلزماتي أنا', 'خضر وفواكه', 'خرجات أو تسلية'];
+        const categoryColors = {
+            'الكراء': '#0f766e',
+            'مواد غذائية': '#f59e0b',
+            'أدوية للصحة': '#e11d48',
+            'مستلزمات الطفل': '#0ea5e9',
+            'مستلزمات المرأة': '#8b5cf6',
+            'مستلزماتي أنا': '#f97316',
+            'خضر وفواكه': '#22c55e',
+            'خرجات أو تسلية': '#06b6d4'
+        };
+
+        const STORAGE_KEY = 'SAMIR_FINANCIAL_DASH_DATA_V2';
+        const RENT_KEY = 'SAMIR_RENT_SETTINGS';
+        const SAVINGS_KEY = 'SAMIR_SAVINGS_DATA';
+        let txList = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        let savingsList = JSON.parse(localStorage.getItem(SAVINGS_KEY) || '[]');
+        let rentSettings = JSON.parse(localStorage.getItem(RENT_KEY) || 'null') || { amount: 0, months: 6, startDate: '' };
+        let monthlyRent = Number(rentSettings.amount) || 0;
+        let incChart = null, expChart = null, goalChart = null, trendChart = null;
+
+        function init() {
+            document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('summaryDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('savingDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('monthlyRent').value = monthlyRent;
+            document.getElementById('rentStartDate').value = rentSettings.startDate || '';
+            document.querySelector(`input[name="rentDuration"][value="${rentSettings.months}"]`).checked = true;
+            updateCats();
+            renderAll();
+        }
+
+        function saveRent() {
+            monthlyRent = Math.max(Number(document.getElementById('monthlyRent').value) || 0, 0);
+            rentSettings = {
+                amount: monthlyRent,
+                months: Number(document.querySelector('input[name="rentDuration"]:checked').value),
+                startDate: document.getElementById('rentStartDate').value
+            };
+            localStorage.setItem(RENT_KEY, JSON.stringify(rentSettings));
+            renderAll();
+        }
+
+        function saveSaving(event) {
+            event.preventDefault();
+            const amount = Number(document.getElementById('savingAmount').value);
+            const date = document.getElementById('savingDate').value;
+            if (amount <= 0 || !date) return;
+            savingsList.push({ id: Date.now(), amount, date });
+            localStorage.setItem(SAVINGS_KEY, JSON.stringify(savingsList));
+            document.getElementById('savingAmount').value = '';
+            renderAll();
+        }
+
+        function updateRentDates() {
+            const endElement = document.getElementById('rentEndDate');
+            const remainingElement = document.getElementById('rentDaysRemaining');
+            if (!rentSettings.startDate) {
+                endElement.innerText = '-';
+                remainingElement.innerText = 'أدخل تاريخ البداية';
+                return;
+            }
+
+            const startDate = new Date(`${rentSettings.startDate}T00:00:00`);
+            const endDate = new Date(startDate);
+            endDate.setMonth(endDate.getMonth() + Number(rentSettings.months));
+            endDate.setDate(endDate.getDate() - 1);
+
+            const formatDate = date => date.toLocaleDateString('ar-MA', { year: 'numeric', month: 'long', day: 'numeric' });
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const daysRemaining = Math.ceil((endDate - today) / 86400000);
+            endElement.innerText = formatDate(endDate);
+            remainingElement.innerText = daysRemaining >= 0 ? `${daysRemaining} يومًا` : 'انتهى الكراء';
+        }
+
+        function updateCats() {
+            const isInc = document.querySelector('input[name="txType"]:checked').value === 'income';
+            const sel = document.getElementById('txCategory');
+            sel.innerHTML = '';
+            (isInc ? incCats : expCats).forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
+            document.getElementById('incomeSourceField').classList.toggle('hidden', !isInc);
+            document.getElementById('incomeSource').required = false;
+        }
+
+        function getCategoryColor(category) {
+            return categoryColors[category] || '#0284c7';
+        }
+
+        function renderAll() {
+            let inc = 0, exp = 0, incMap = {}, expMap = {};
+            incCats.forEach(c => incMap[c] = 0);
+            expCats.forEach(c => expMap[c] = 0);
+
+            txList.forEach(t => {
+                if (t.type === 'income') {
+                    inc += Number(t.amount);
+                    incMap[t.category] = (incMap[t.category] || 0) + Number(t.amount);
+                } else {
+                    exp += Number(t.amount);
+                    expMap[t.category] = (expMap[t.category] || 0) + Number(t.amount);
+                }
+            });
+
+            exp += monthlyRent;
+            expMap['الكراء'] = monthlyRent;
+
+            const savedAmount = savingsList.reduce((sum, saving) => sum + Number(saving.amount), 0);
+            const goalPct = Math.min(Math.max((savedAmount / 100000) * 100, 0), 100);
+            const net = inc - exp;
+
+            document.getElementById('kpiTotalIncome').innerText = inc.toLocaleString('ar-MA');
+            document.getElementById('kpiTotalExpense').innerText = exp.toLocaleString('ar-MA');
+            document.getElementById('kpiNetProfit').innerText = net.toLocaleString('ar-MA');
+            document.getElementById('goalAchieved').innerText = savedAmount.toLocaleString('ar-MA') + ' د.م';
+            document.getElementById('goalRemaining').innerText = Math.max(100000 - savedAmount, 0).toLocaleString('ar-MA') + ' د.م';
+            document.getElementById('goalPercentage').innerText = goalPct.toFixed(1) + '%';
+            document.getElementById('goalProgressBar').style.width = goalPct + '%';
+            document.getElementById('rentSixMonths').innerText = (monthlyRent * 6).toLocaleString('ar-MA') + ' د.م';
+            document.getElementById('rentYear').innerText = (monthlyRent * 12).toLocaleString('ar-MA') + ' د.م';
+            updateRentDates();
+
+            let topSrc = '-', topAmt = 0;
+            for (let [k, v] of Object.entries(incMap)) { if (v > topAmt) { topAmt = v; topSrc = k; } }
+            document.getElementById('kpiTopSource').innerText = topSrc + ` (${topAmt.toLocaleString('ar-MA')} د.م)`;
+
+            renderPeriodSummary();
+            renderCharts(incMap, expMap);
+            renderGoalChart();
+            renderTable();
+        }
+
+        function renderPeriodSummary() {
+            const period = document.getElementById('summaryPeriod').value;
+            const selectedDate = document.getElementById('summaryDate').value || new Date().toISOString().split('T')[0];
+            const selectedMonth = selectedDate.slice(0, 7);
+            const selectedYear = selectedDate.slice(0, 4);
+            let income = 0, expense = 0;
+
+            txList.forEach(t => {
+                const matches = period === 'day' ? t.date === selectedDate : period === 'month' ? t.date.slice(0, 7) === selectedMonth : t.date.slice(0, 4) === selectedYear;
+                if (!matches) return;
+                if (t.type === 'income') income += Number(t.amount) || 0;
+                else expense += Number(t.amount) || 0;
+            });
+
+            if (period === 'month') expense += monthlyRent;
+            if (period === 'year') expense += monthlyRent * 12;
+            if (period === 'day') expense += monthlyRent / 30;
+
+            document.getElementById('periodIncome').innerText = income.toLocaleString('ar-MA') + ' د.م';
+            document.getElementById('periodExpense').innerText = expense.toLocaleString('ar-MA') + ' د.م';
+            document.getElementById('periodNet').innerText = (income - expense).toLocaleString('ar-MA') + ' د.م';
+            renderTrendChart(period, selectedDate);
+        }
+
+        function renderTrendChart(period, selectedDate) {
+            const selected = new Date(`${selectedDate}T00:00:00`);
+            const labels = [], values = [];
+            const type = document.getElementById('trendType').value;
+            const points = period === 'day' ? 30 : period === 'month' ? new Date(selected.getFullYear(), selected.getMonth() + 1, 0).getDate() : 12;
+
+            for (let index = 0; index < points; index++) {
+                const pointDate = period === 'day' ? new Date(selected.getFullYear(), selected.getMonth(), selected.getDate() - (points - 1 - index)) : period === 'month' ? new Date(selected.getFullYear(), selected.getMonth(), index + 1) : new Date(selected.getFullYear(), index, 1);
+                const key = pointDate.toISOString().split('T')[0];
+                const amount = txList.filter(t => t.type === type && (period === 'year' ? t.date.slice(0, 4) === selectedDate.slice(0, 4) && t.date.slice(5, 7) === String(index + 1).padStart(2, '0') : period === 'month' ? t.date === key : t.date === key)).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+                const rent = type === 'expense' ? period === 'year' ? monthlyRent : period === 'month' ? monthlyRent / points : monthlyRent / 30 : 0;
+                labels.push(period === 'year' ? pointDate.toLocaleDateString('ar-MA', { month: 'short' }) : pointDate.toLocaleDateString('ar-MA', { day: 'numeric', month: 'short' }));
+                values.push(amount + rent);
+            }
+
+            if (trendChart) trendChart.destroy();
+            trendChart = new Chart(document.getElementById('trendChart'), {
+                type: 'line',
+                data: { labels, datasets: [{ label: type === 'income' ? 'الدخل' : 'المصاريف', data: values, borderColor: type === 'income' ? '#059669' : '#e11d48', backgroundColor: type === 'income' ? 'rgba(5, 150, 105, .12)' : 'rgba(225, 29, 72, .12)', fill: true, tension: .3, pointRadius: 3 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } }, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function renderCharts(incMap, expMap) {
+            if (incChart) incChart.destroy();
+            incChart = new Chart(document.getElementById('incomeChart'), {
+                type: 'doughnut',
+                data: { labels: Object.keys(incMap), datasets: [{ data: Object.values(incMap), backgroundColor: Object.keys(incMap).map(getCategoryColor) }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            if (expChart) expChart.destroy();
+            const expenseLabels = Object.keys(expMap).filter(category => expMap[category] > 0);
+            const expenseValues = expenseLabels.map(category => expMap[category]);
+            expChart = new Chart(document.getElementById('expenseChart'), {
+                type: 'doughnut',
+                data: { labels: expenseLabels.length ? expenseLabels : ['لا توجد مصاريف'], datasets: [{ data: expenseValues.length ? expenseValues : [1], backgroundColor: expenseLabels.length ? expenseLabels.map(getCategoryColor) : ['#cbd5e1'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function renderGoalChart() {
+            const sorted = [...savingsList].sort((a, b) => new Date(a.date) - new Date(b.date));
+            let total = 0;
+            const labels = ['البداية'];
+            const values = [0];
+            sorted.forEach(t => {
+                total += Number(t.amount);
+                labels.push(t.date);
+                values.push(total);
+            });
+            if (goalChart) goalChart.destroy();
+            goalChart = new Chart(document.getElementById('goalChart'), {
+                type: 'line',
+                data: { labels, datasets: [{ label: 'الربح التراكمي', data: values, borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, .16)', fill: true, tension: .35, pointRadius: 3 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#cbd5e1', maxTicksLimit: 6 } }, y: { ticks: { color: '#cbd5e1' }, suggestedMax: 100000 } } }
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('txTableBody');
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            const f = document.getElementById('typeFilter').value;
+            tbody.innerHTML = '';
+
+            txList.filter(t => (f === 'all' || t.type === f) && (String(t.desc || '').toLowerCase().includes(q) || String(t.category || '').toLowerCase().includes(q)))
+                  .sort((a, b) => new Date(b.date) - new Date(a.date))
+                  .forEach(t => {
+                      const isInc = t.type === 'income';
+                      tbody.innerHTML += `
+                          <tr class="hover:bg-slate-50">
+                              <td class="p-3 font-bold ${isInc ? 'text-emerald-600' : 'text-rose-600'}">${isInc ? 'مدخول 🟢' : 'مصروف 🔴'}</td>
+                              <td class="p-3 text-slate-500">${t.date}</td>
+                              <td class="p-3 font-bold"><span class="inline-block w-2.5 h-2.5 rounded-full ml-1" style="background-color: ${getCategoryColor(t.category)}"></span>${t.category}</td>
+                              <td class="p-3">${t.desc || '-'}</td>
+                              <td class="p-3 font-bold">${isInc ? '+' : '-'}${Number(t.amount).toLocaleString('ar-MA')} د.م</td>
+                              <td class="p-3 text-center"><button onclick="delTx(${t.id})" class="text-rose-500 hover:text-rose-700">🗑️</button></td>
+                          </tr>`;
+                  });
+        }
+
+        function openModal() { document.getElementById('txModal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('txModal').classList.add('hidden'); }
+
+        function saveTx(e) {
+            e.preventDefault();
+            const type = document.querySelector('input[name="txType"]:checked').value;
+            const date = document.getElementById('txDate').value;
+            const amount = parseFloat(document.getElementById('txAmount').value);
+            const customSource = document.getElementById('incomeSource').value.trim();
+            const category = type === 'income' && customSource ? customSource : document.getElementById('txCategory').value;
+            const desc = document.getElementById('txDesc').value;
+
+            txList.push({ id: Date.now(), type, date, amount, category, desc });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(txList));
+            closeModal();
+            renderAll();
+        }
+
+        function delTx(id) {
+            if (confirm('تأكيد حذف المعاملة؟')) {
+                txList = txList.filter(t => t.id !== id);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(txList));
+                renderAll();
+            }
+        }
+
+        function exportCSV() {
+            let csv = "\uFEFFالنوع,التاريخ,التصنيف,البيان,المبلغ\n";
+            txList.forEach(t => csv += `"${t.type === 'income' ? 'مدخول' : 'مصروف'}","${t.date}","${t.category}","${t.desc}","${t.amount}"\n`);
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+            a.download = `تقرير_ديكور_سمير_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        function backupData() {
+            const backup = {
+                version: 1,
+                createdAt: new Date().toISOString(),
+                transactions: txList,
+                savings: savingsList,
+                rentSettings
+            };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `نسخة_احتياطية_مصاريفي_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        function restoreData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function () {
+                try {
+                    const backup = JSON.parse(reader.result);
+                    if (!Array.isArray(backup.transactions) || !Array.isArray(backup.savings) || !backup.rentSettings) throw new Error('invalid backup');
+                    if (!confirm('سيتم استبدال البيانات الحالية بالنسخة الاحتياطية. هل تريد المتابعة؟')) return;
+                    txList = backup.transactions;
+                    savingsList = backup.savings;
+                    rentSettings = backup.rentSettings;
+                    monthlyRent = Number(rentSettings.amount) || 0;
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(txList));
+                    localStorage.setItem(SAVINGS_KEY, JSON.stringify(savingsList));
+                    localStorage.setItem(RENT_KEY, JSON.stringify(rentSettings));
+                    document.getElementById('monthlyRent').value = monthlyRent;
+                    document.getElementById('rentStartDate').value = rentSettings.startDate || '';
+                    document.querySelector(`input[name="rentDuration"][value="${rentSettings.months}"]`).checked = true;
+                    renderAll();
+                    alert('تم استرجاع البيانات بنجاح.');
+                } catch (error) {
+                    alert('ملف النسخة الاحتياطية غير صالح.');
+                } finally {
+                    event.target.value = '';
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetAllData() {
+            if (!confirm('سيتم حذف جميع المعاملات والتوفير وإعدادات الكراء. هل تريد تصفير كل البيانات؟')) return;
+            txList = [];
+            savingsList = [];
+            rentSettings = { amount: 0, months: 6, startDate: '' };
+            monthlyRent = 0;
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(SAVINGS_KEY);
+            localStorage.removeItem(RENT_KEY);
+            document.getElementById('monthlyRent').value = 0;
+            document.getElementById('rentStartDate').value = '';
+            document.querySelector('input[name="rentDuration"][value="6"]').checked = true;
+            renderAll();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
